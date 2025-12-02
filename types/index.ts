@@ -1,16 +1,16 @@
 // 블록 타입 정의
-export type BlockKind = 
-  | "GAP" 
-  | "PRICE_REF" 
-  | "CONDITION" 
-  | "GAP_RESULT" 
+export type BlockKind =
+  | "GAP"
+  | "PRICE_REF"
+  | "CONDITION"
+  | "GAP_RESULT"
   | "ACTION"
   | "CONDITION_GROUP";
 
 export type MarketType = "spot" | "perp";
 export type ProviderType = "binance" | "upbit";
 export type OperatorType = "≥" | "≤" | ">" | "<" | "==" | "!=";
-export type ActionType = 
+export type ActionType =
   | "binance_buy_spot_max_long"
   | "binance_buy_perp_max_short"
   | "binance_sell_spot_max_long"
@@ -30,6 +30,8 @@ export interface GapBlock {
   kind: "GAP";
   refs: PriceRef[];
   result?: number | null;
+  x?: number;
+  y?: number;
 }
 
 export interface PriceRefBlock {
@@ -40,6 +42,8 @@ export interface PriceRefBlock {
   provider?: ProviderType;
   price?: number;
   ts?: number;
+  x?: number;
+  y?: number;
 }
 
 export interface GapResultBlock {
@@ -49,6 +53,8 @@ export interface GapResultBlock {
   value: number;
   ts?: number;
   inlineOnly?: boolean;
+  x?: number;
+  y?: number;
 }
 
 export interface ConditionBlock {
@@ -58,6 +64,8 @@ export interface ConditionBlock {
   op: OperatorType;
   rightRefId?: string; // GAP_RESULT 블록 ID 참조
   parentGroupId?: string; // 조건문 그룹에 속한 경우
+  x?: number;
+  y?: number;
 }
 
 export interface ConditionGroupBlock {
@@ -65,6 +73,8 @@ export interface ConditionGroupBlock {
   kind: "CONDITION_GROUP";
   conditions: string[]; // ConditionBlock IDs
   nextActionId?: string; // 연결된 Action 블록 ID
+  x?: number;
+  y?: number;
 }
 
 export interface ActionBlock {
@@ -72,13 +82,15 @@ export interface ActionBlock {
   kind: "ACTION";
   actions: ActionType[];
   prevConditionId?: string; // 이전 조건문 그룹 ID
+  x?: number;
+  y?: number;
 }
 
-export type Block = 
-  | GapBlock 
-  | PriceRefBlock 
-  | ConditionBlock 
-  | GapResultBlock 
+export type Block =
+  | GapBlock
+  | PriceRefBlock
+  | ConditionBlock
+  | GapResultBlock
   | ConditionGroupBlock
   | ActionBlock;
 
@@ -114,4 +126,3 @@ export interface TradingExecution {
   startedAt: number;
   completedAt?: number;
 }
-

@@ -136,6 +136,10 @@ export default function FormulaEditor({
   // 캔버스에 드롭
   async function onCanvasDrop(e: React.DragEvent) {
     e.preventDefault();
+    const canvas = canvasRef.current;
+    const rect = canvas?.getBoundingClientRect();
+    const x = rect ? e.clientX - rect.left + (canvas?.scrollLeft || 0) : 0;
+    const y = rect ? e.clientY - rect.top + (canvas?.scrollTop || 0) : 0;
     const raw = e.dataTransfer.getData("application/json");
     if (!raw) return;
 
@@ -146,9 +150,13 @@ export default function FormulaEditor({
         // GAP_RESULT 이동 처리
         const existing = blocks.find((b) => b.id === payload.id);
         if (existing) {
-          // 같은 에디터 내 이동
-          const without = blocks.filter((b) => b.id !== payload.id);
-          onBlocksChange([...without, existing as GapResultBlock]);
+          // 같은 에디터 내 이동: 위치 업데이트
+          const updated = blocks.map((b) =>
+            b.id === payload.id && b.kind === "GAP_RESULT"
+              ? { ...(b as GapResultBlock), x, y }
+              : b
+          );
+          onBlocksChange(updated);
         } else {
           // 다른 에디터에서 복사
           const newBlock: GapResultBlock = {
@@ -157,6 +165,8 @@ export default function FormulaEditor({
             gapId: payload.gapId || "",
             value: payload.value || 0,
             ts: payload.ts || Date.now(),
+            x,
+            y,
           };
           onBlocksChange([...blocks, newBlock]);
         }
@@ -173,6 +183,8 @@ export default function FormulaEditor({
           kind: "GAP",
           refs: [],
           result: null,
+          x,
+          y,
         };
         onBlocksChange([...blocks, newBlock]);
       } else if (payload.kind === "PRICE_REF") {
@@ -190,6 +202,8 @@ export default function FormulaEditor({
           provider,
           price: p.price,
           ts: p.ts,
+          x,
+          y,
         };
         onBlocksChange([...blocks, newBlock]);
       } else if (payload.kind === "CONDITION") {
@@ -198,6 +212,8 @@ export default function FormulaEditor({
           kind: "CONDITION",
           left: null,
           op: "≥",
+          x,
+          y,
         };
         onBlocksChange([...blocks, newBlock]);
       } else if (payload.kind === "CONDITION_GROUP") {
@@ -205,6 +221,8 @@ export default function FormulaEditor({
           id,
           kind: "CONDITION_GROUP",
           conditions: [],
+          x,
+          y,
         };
         onBlocksChange([...blocks, newBlock]);
       } else if (payload.kind === "ACTION") {
@@ -218,6 +236,8 @@ export default function FormulaEditor({
           id,
           kind: "ACTION",
           actions: [],
+          x,
+          y,
         };
         onBlocksChange([...blocks, newBlock]);
       }
@@ -1211,6 +1231,7 @@ export default function FormulaEditor({
         className="editor-canvas"
         onDragOver={allowDrop}
         onDrop={onCanvasDrop}
+        style={{ position: "relative", minHeight: 400 }}
       >
         {blocks.length === 0 ? (
           <div
@@ -1230,10 +1251,19 @@ export default function FormulaEditor({
                 !(b.kind === "ACTION" && b.prevConditionId)
             )
             .map((b) => {
-              if (b.kind === "CONDITION_GROUP") {
-                return renderBlock(b);
-              }
-              return <div key={b.id}>{renderBlock(b)}</div>;
+              const hasPos = (b as any).x != null && (b as any).y != null;
+              const wrapperStyle = hasPos
+                ? {
+                    position: "absolute" as const,
+                    left: (b as any).x,
+                    top: (b as any).y,
+                  }
+                : undefined;
+              return (
+                <div key={b.id} style={wrapperStyle}>
+                  {renderBlock(b)}
+                </div>
+              );
             })
         )}
       </div>
