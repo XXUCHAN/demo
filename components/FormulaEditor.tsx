@@ -128,7 +128,23 @@ export default function FormulaEditor({
       const nx = Math.max(0, mouseX - dragOffsetRef.current.x);
       const ny = Math.max(0, mouseY - dragOffsetRef.current.y);
       onBlocksChange(
-        blocks.map((b) => (b.id === draggingId ? { ...b, x: nx, y: ny } : b))
+        blocks.map((b) => {
+          if (b.id === draggingId) {
+            return { ...b, x: nx, y: ny } as Block;
+          }
+          // GAP 블록 이동 시 연결된 GAP_RESULT 블록도 아래로 따라오도록 위치 조정
+          const isDraggingGap = blocks.some(
+            (x) => x.id === draggingId && x.kind === "GAP"
+          );
+          if (
+            isDraggingGap &&
+            b.kind === "GAP_RESULT" &&
+            b.gapId === draggingId
+          ) {
+            return { ...b, x: nx, y: ny + 160 };
+          }
+          return b;
+        })
       );
     }
     function onUp() {
@@ -205,11 +221,22 @@ export default function FormulaEditor({
         gapId,
         value: result,
         ts: Date.now(),
+        x: gap?.x,
+        y: gap?.y != null ? gap.y + 200 : undefined,
       };
       workingBlocks = workingBlocks.map((b) =>
         b.kind === "GAP" && b.id === gapId ? { ...b, result } : b
       );
-      workingBlocks.push(resultBlock);
+      const gapIdx = workingBlocks.findIndex(
+        (b) => b.kind === "GAP" && b.id === gapId
+      );
+      if (gapIdx >= 0) {
+        const before = workingBlocks.slice(0, gapIdx + 1);
+        const after = workingBlocks.slice(gapIdx + 1);
+        workingBlocks = [...before, resultBlock, ...after];
+      } else {
+        workingBlocks.push(resultBlock);
+      }
     } else {
       workingBlocks = workingBlocks.map((b) =>
         b.kind === "GAP" && b.id === gapId ? { ...b, result: null } : b
