@@ -776,11 +776,12 @@ export default function FormulaEditor({
             style={{
               marginTop: 12,
               display: "grid",
-              gridTemplateColumns: "1fr",
+              gridTemplateColumns: "1fr 40px 1fr",
+              alignItems: "stretch",
               gap: 8,
             }}
           >
-            {/* Numerator (Spot) */}
+            {/* Left side (Spot = Numerator) */}
             <div
               className="condition-drop-zone"
               onDragOver={allowDrop}
@@ -802,9 +803,7 @@ export default function FormulaEditor({
                         color: "var(--text-secondary)",
                         marginBottom: 4,
                       }}
-                    >
-                      분자 (Spot)
-                    </div>
+                    ></div>
                     <div style={{ fontWeight: 600 }}>
                       {r.symbol} · {(r.provider || "binance").toUpperCase()} —{" "}
                       {r.price?.toLocaleString() ?? "-"}
@@ -815,13 +814,26 @@ export default function FormulaEditor({
                   <span
                     style={{ color: "var(--text-secondary)", fontSize: 13 }}
                   >
-                    분자(Spot) 가격 블록을 드롭하세요
+                    Spot Price
                   </span>
                 );
               })()}
             </div>
+            {/* visual divider for horizontal formula */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--text-secondary)",
+                fontWeight: 700,
+              }}
+              aria-hidden
+            >
+              ÷
+            </div>
 
-            {/* Denominator (Perp) */}
+            {/* Right side (Perp = Denominator) */}
             <div
               className="condition-drop-zone"
               onDragOver={allowDrop}
@@ -843,9 +855,7 @@ export default function FormulaEditor({
                         color: "var(--text-secondary)",
                         marginBottom: 4,
                       }}
-                    >
-                      분모 (Perp)
-                    </div>
+                    ></div>
                     <div style={{ fontWeight: 600 }}>
                       {r.symbol} · {(r.provider || "binance").toUpperCase()} —{" "}
                       {r.price?.toLocaleString() ?? "-"}
@@ -856,7 +866,7 @@ export default function FormulaEditor({
                   <span
                     style={{ color: "var(--text-secondary)", fontSize: 13 }}
                   >
-                    분모(Perp) 가격 블록을 드롭하세요
+                    Perp Price
                   </span>
                 );
               })()}
