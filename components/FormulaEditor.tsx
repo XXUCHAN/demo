@@ -58,6 +58,92 @@ export default function FormulaEditor({
     Record<string, ActionType | "">
   >({});
 
+  // 캔버스 내 블록 드래그 이동 상태
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  function getCanvasCoords(e: { clientX: number; clientY: number }) {
+    const canvas = canvasRef.current;
+    const rect = canvas?.getBoundingClientRect();
+    const x = rect ? e.clientX - rect.left + (canvas?.scrollLeft || 0) : 0;
+    const y = rect ? e.clientY - rect.top + (canvas?.scrollTop || 0) : 0;
+    return { x, y };
+  }
+
+  function shouldIgnoreDragStart(target: EventTarget | null) {
+    if (!(target instanceof HTMLElement)) return false;
+    const tag = target.tagName;
+    if (
+      tag === "INPUT" ||
+      tag === "SELECT" ||
+      tag === "TEXTAREA" ||
+      tag === "BUTTON"
+    )
+      return true;
+    // 내부에서 자체 드래그를 사용하는 요소(PRICE_REF, GAP_RESULT 등)
+    if (target.getAttribute("draggable") === "true") return true;
+    // 상위까지 검사
+    let el: HTMLElement | null = target;
+    while (el) {
+      if (el.getAttribute && el.getAttribute("draggable") === "true")
+        return true;
+      if (
+        el.tagName === "BUTTON" ||
+        el.tagName === "SELECT" ||
+        el.tagName === "INPUT" ||
+        el.tagName === "TEXTAREA"
+      )
+        return true;
+      el = el.parentElement;
+    }
+    return false;
+  }
+
+  function onBlockMouseDown(e: React.MouseEvent, blockId: string) {
+    if (e.button !== 0) return; // 좌클릭만
+    if (shouldIgnoreDragStart(e.target)) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // 현재 블록의 화면상 위치를 계산하여 오프셋 산출
+    const canvasRect = canvas.getBoundingClientRect();
+    const targetRect = (
+      e.currentTarget as HTMLDivElement
+    ).getBoundingClientRect();
+    const currentX =
+      targetRect.left - canvasRect.left + (canvas.scrollLeft || 0);
+    const currentY = targetRect.top - canvasRect.top + (canvas.scrollTop || 0);
+    const { x: mouseX, y: mouseY } = getCanvasCoords(e);
+    dragOffsetRef.current = { x: mouseX - currentX, y: mouseY - currentY };
+    setDraggingId(blockId);
+    // 드래그 중 텍스트 선택 방지
+    e.preventDefault();
+  }
+
+  // 전역 마우스 이동/업 리스너로 좌표 업데이트
+  useEffect(() => {
+    function onMove(ev: MouseEvent) {
+      if (!draggingId) return;
+      const { x: mouseX, y: mouseY } = getCanvasCoords(ev);
+      const nx = Math.max(0, mouseX - dragOffsetRef.current.x);
+      const ny = Math.max(0, mouseY - dragOffsetRef.current.y);
+      onBlocksChange(
+        blocks.map((b) => (b.id === draggingId ? { ...b, x: nx, y: ny } : b))
+      );
+    }
+    function onUp() {
+      if (draggingId) setDraggingId(null);
+    }
+    if (draggingId) {
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+      return () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+    }
+  }, [draggingId, blocks, onBlocksChange]);
+
   // 블록 삭제
   function deleteBlock(id: string) {
     const block = blocks.find((b) => b.id === id);
@@ -1260,7 +1346,11 @@ export default function FormulaEditor({
                   }
                 : undefined;
               return (
-                <div key={b.id} style={wrapperStyle}>
+                <div
+                  key={b.id}
+                  style={{ ...wrapperStyle, cursor: "move" }}
+                  onMouseDown={(e) => onBlockMouseDown(e, b.id)}
+                >
                   {renderBlock(b)}
                 </div>
               );
