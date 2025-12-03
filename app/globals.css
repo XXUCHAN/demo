@@ -398,6 +398,15 @@ html {
   gap: 16px;
 }
 
+/* Global scale to make UI smaller at 100% browser zoom */
+.scale-75 {
+  /* Scale down the entire app visually */
+  transform: scale(0.75);
+  transform-origin: top left;
+  /* Compensate width so content still fills the viewport */
+  width: calc(100% / 0.75);
+}
+
 .editor-canvas {
   flex: 1;
   border: 2px dashed var(--border);
