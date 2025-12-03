@@ -19,8 +19,14 @@ export default function Sandbox() {
   const [transport, setTransport] = useState<"websocket" | "rest">("websocket");
   const [intervalSec, setIntervalSec] = useState<number>(0);
   const [blockColor, setBlockColor] = useState<string>("#3b82f6");
-
-  // 선택 상태를 기반으로 동적 placeholder 생성
+  const [customChannel, setCustomChannel] = useState<
+    "websocket" | "api" | "dex"
+  >("websocket");
+  const [wsUrl, setWsUrl] = useState<string>("");
+  const [datasetText, setDatasetText] = useState<string>("");
+  const [jsonText, setJsonText] = useState<string>(`{
+  // example payload...
+}`);
   const computedPlaceholder = (() => {
     const prov = provider
       ? provider === "binance"
@@ -219,18 +225,146 @@ export default function Sandbox() {
 
       {apiType === "custom" && (
         <div className="sidebar-section">
-          <strong>Custom API</strong>
-          <div
-            style={{
-              padding: 12,
-              border: "1px dashed var(--border)",
-              borderRadius: "var(--radius-sm)",
-              color: "var(--text-secondary)",
-              fontSize: 13,
-            }}
-          >
-            추후 제공 예정입니다. 현재는 Basic API(바이낸스/업비트)만 사용
-            가능합니다.
+          <strong>커스텀 API</strong>
+          <div style={{ marginTop: 8 }}>
+            <div className="toggle-group">
+              <button
+                className={`toggle-btn ${
+                  customChannel === "websocket" ? "active" : ""
+                }`}
+                onClick={() => setCustomChannel("websocket")}
+              >
+                WebSocket
+              </button>
+              <button
+                className={`toggle-btn ${
+                  customChannel === "api" ? "active" : ""
+                }`}
+                onClick={() => setCustomChannel("api")}
+              >
+                REST API
+              </button>
+              <button
+                className={`toggle-btn ${
+                  customChannel === "dex" ? "active" : ""
+                }`}
+                onClick={() => setCustomChannel("dex")}
+              >
+                DEX
+              </button>
+            </div>
+
+            {/* inputs per mockup */}
+            {customChannel === "websocket" && (
+              <>
+                <input
+                  type="text"
+                  placeholder="drop your websocket URL..."
+                  value={wsUrl}
+                  onChange={(e) => setWsUrl(e.target.value)}
+                  style={{
+                    width: "100%",
+                    marginTop: 8,
+                    padding: "8px 12px",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--bg)",
+                    color: "var(--text)",
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="drop your dataset"
+                  value={datasetText}
+                  onChange={(e) => setDatasetText(e.target.value)}
+                  style={{
+                    width: "100%",
+                    marginTop: 8,
+                    padding: "8px 12px",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--bg)",
+                    color: "var(--text)",
+                  }}
+                />
+              </>
+            )}
+
+            {customChannel !== "websocket" && (
+              <div
+                style={{
+                  marginTop: 8,
+                  padding: 10,
+                  border: "1px dashed var(--border)",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: 12,
+                  color: "var(--text-secondary)",
+                }}
+              >
+                선택한 채널({customChannel})에 맞는 입력 요소를 추후 지원합니다.
+              </div>
+            )}
+
+            {/* simple JSON editor area */}
+            <textarea
+              placeholder="json {\n  // ex...\n}"
+              value={jsonText}
+              onChange={(e) => setJsonText(e.target.value)}
+              rows={8}
+              style={{
+                width: "100%",
+                marginTop: 8,
+                padding: "8px 12px",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-sm)",
+                background: "var(--bg)",
+                color: "var(--text)",
+                fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular)",
+                fontSize: 12,
+                lineHeight: 1.5,
+              }}
+            />
+
+            {/* actions: backtest & create block */}
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="toggle-btn" style={{ opacity: 0.7 }}>
+                Validate
+              </button>
+              <button
+                className="toggle-btn active"
+                draggable
+                onDragStart={(e) =>
+                  handleDragStart(e, {
+                    action: "create",
+                    kind: "PRICE_REF",
+                    symbol: symbol,
+                    provider: undefined,
+                    transport:
+                      customChannel === "websocket" ? "websocket" : "rest",
+                    intervalSec: intervalSec,
+                    color: blockColor,
+                    custom: {
+                      channel: customChannel,
+                      wsUrl,
+                      dataset: datasetText,
+                      json: jsonText,
+                    },
+                  })
+                }
+              >
+                Create
+              </button>
+            </div>
+
+            {/* notes (from mockup) */}
+            <ol
+              style={{
+                marginTop: 10,
+                paddingLeft: 16,
+                fontSize: 12,
+                color: "var(--text-secondary)",
+              }}
+            ></ol>
           </div>
         </div>
       )}
