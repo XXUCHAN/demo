@@ -4,7 +4,7 @@ import { DragPayload, MarketType, ProviderType } from "../types";
 
 export default function Sandbox() {
   const [apiType, setApiType] = useState<"basic" | "custom">("basic");
-  const [provider, setProvider] = useState<ProviderType>("binance");
+  const [provider, setProvider] = useState<ProviderType | undefined>(undefined);
   const [symbol, setSymbol] = useState("BTC");
   const [activeMarkets, setActiveMarkets] = useState<{
     spot: boolean;
@@ -16,10 +16,17 @@ export default function Sandbox() {
 
   const [providerInput, setProviderInput] = useState("");
   const [showProviderHints, setShowProviderHints] = useState(false);
+  const [transport, setTransport] = useState<"websocket" | "rest">("websocket");
+  const [intervalSec, setIntervalSec] = useState<number>(0);
+  const [blockColor, setBlockColor] = useState<string>("#3b82f6");
 
   // 선택 상태를 기반으로 동적 placeholder 생성
   const computedPlaceholder = (() => {
-    const prov = provider === "binance" ? "binance" : "upbit";
+    const prov = provider
+      ? provider === "binance"
+        ? "binance"
+        : "upbit"
+      : "binance";
     const market = activeMarkets.spot
       ? "spot"
       : activeMarkets.perp
@@ -47,9 +54,16 @@ export default function Sandbox() {
 
   function renderPriceBlock(market: MarketType) {
     const isSpot = market === "spot";
-    const palette = isSpot
-      ? { bg: "rgba(16, 185, 129, 0.08)", border: "var(--success)" }
-      : { bg: "rgba(59, 130, 246, 0.08)", border: "var(--primary)" };
+    function hexToRgba(hex: string, alpha: number) {
+      const h = hex.replace("#", "");
+      const r = parseInt(h.substring(0, 2), 16);
+      const g = parseInt(h.substring(2, 4), 16);
+      const b = parseInt(h.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    const chosenBorder = blockColor;
+    const chosenBg = hexToRgba(blockColor, 0.08);
+    const palette = { bg: chosenBg, border: chosenBorder };
 
     return (
       <div
@@ -63,6 +77,9 @@ export default function Sandbox() {
             market,
             symbol,
             provider,
+            transport,
+            intervalSec,
+            color: blockColor,
           })
         }
         style={{ background: palette.bg, borderColor: palette.border }}
@@ -73,8 +90,18 @@ export default function Sandbox() {
         <div
           style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}
         >
-          {(provider === "binance" ? "Binance" : "Upbit").toUpperCase()} 가격
-          블록
+          {(provider
+            ? provider === "binance"
+              ? "Binance"
+              : "Upbit"
+            : "-"
+          ).toUpperCase()}{" "}
+          가격 블록
+        </div>
+        <div
+          style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6 }}
+        >
+          {transport.toUpperCase()} · {intervalSec}s · 색상 {blockColor}
         </div>
       </div>
     );
@@ -181,7 +208,9 @@ export default function Sandbox() {
                 marginTop: 6,
               }}
             >
-              선택됨: {provider === "binance" ? "Binance" : "Upbit"} ·{" "}
+              선택됨:{" "}
+              {provider ? (provider === "binance" ? "Binance" : "Upbit") : "-"}{" "}
+              ·{" "}
               {activeMarkets.spot ? "Spot" : activeMarkets.perp ? "Perp" : "-"}
             </div>
           </div>
@@ -218,16 +247,99 @@ export default function Sandbox() {
         {apiType === "basic" && activeMarkets.spot && renderPriceBlock("spot")}
         {apiType === "basic" && activeMarkets.perp && renderPriceBlock("perp")}
 
-        {apiType === "custom" && (
-          <div
-            style={{
-              padding: 20,
-              textAlign: "center",
-              color: "var(--text-secondary)",
-              fontSize: 13,
-            }}
-          >
-            Custom API는 추후 추가될 예정입니다.
+        {apiType === "basic" && (activeMarkets.spot || activeMarkets.perp) && (
+          <div className="sidebar-section" style={{ marginTop: 8 }}>
+            <strong style={{ fontSize: 13 }}>블록 속성</strong>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: 8,
+                marginTop: 8,
+                alignItems: "start",
+                justifyItems: "start",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--text-secondary)",
+                    marginBottom: 4,
+                  }}
+                >
+                  연결 방식
+                </div>
+                <div className="toggle-group">
+                  <button
+                    className={`toggle-btn ${
+                      transport === "websocket" ? "active" : ""
+                    }`}
+                    onClick={() => setTransport("websocket")}
+                  >
+                    WebSocket
+                  </button>
+                  <button
+                    className={`toggle-btn ${
+                      transport === "rest" ? "active" : ""
+                    }`}
+                    onClick={() => setTransport("rest")}
+                  >
+                    REST
+                  </button>
+                </div>
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--text-secondary)",
+                    marginBottom: 4,
+                  }}
+                >
+                  주기(초)
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  value={intervalSec}
+                  onChange={(e) =>
+                    setIntervalSec(Math.max(0, Number(e.target.value) || 0))
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--bg)",
+                    color: "var(--text)",
+                  }}
+                />
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--text-secondary)",
+                    marginBottom: 4,
+                  }}
+                >
+                  블록 색상
+                </div>
+                <input
+                  type="color"
+                  value={blockColor}
+                  onChange={(e) => setBlockColor(e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: 36,
+                    padding: 0,
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius-sm)",
+                  }}
+                />
+              </div>
+            </div>
           </div>
         )}
       </div>
