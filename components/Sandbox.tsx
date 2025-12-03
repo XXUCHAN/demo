@@ -1,39 +1,55 @@
 "use client";
-
 import React, { useState } from "react";
 import { DragPayload, MarketType, ProviderType } from "../types";
 
-const ASSETS = [
-  { label: "BTC", value: "BTC" },
-  { label: "ETH", value: "ETH" },
-];
-
 export default function Sandbox() {
+  const [apiType, setApiType] = useState<"basic" | "custom">("basic");
+  const [provider, setProvider] = useState<ProviderType>("binance");
+  const [symbol, setSymbol] = useState("BTC");
   const [activeMarkets, setActiveMarkets] = useState<{
     spot: boolean;
     perp: boolean;
   }>({
-    spot: true,
-    perp: true,
+    spot: false,
+    perp: false,
   });
-  const [provider, setProvider] = useState<ProviderType>("binance");
-  const [symbol, setSymbol] = useState("BTC");
+
+  const [providerInput, setProviderInput] = useState("");
+  const [showProviderHints, setShowProviderHints] = useState(false);
+
+  // 선택 상태를 기반으로 동적 placeholder 생성
+  const computedPlaceholder = (() => {
+    const prov = provider === "binance" ? "binance" : "upbit";
+    const market = activeMarkets.spot
+      ? "spot"
+      : activeMarkets.perp
+      ? "perp"
+      : "";
+    if (!market) return "예: /binance spot price, /upbit perp price";
+    return `/${prov} ${market} price`;
+  })();
 
   function handleDragStart(e: React.DragEvent, payload: DragPayload) {
     e.dataTransfer.setData("application/json", JSON.stringify(payload));
     e.dataTransfer.effectAllowed = "copy";
   }
 
-  function toggleMarket(k: MarketType) {
-    setActiveMarkets((s) => ({ ...s, [k]: !s[k] }));
+  function applySlashSelection(hint: string) {
+    const h = hint.toLowerCase();
+    if (h.includes("binance")) setProvider("binance");
+    if (h.includes("upbit")) setProvider("upbit");
+    if (h.includes("spot")) setActiveMarkets({ spot: true, perp: false });
+    if (h.includes("perp")) setActiveMarkets({ spot: false, perp: true });
+    // 선택 후 입력값 초기화 및 힌트 닫기
+    setProviderInput("");
+    setShowProviderHints(false);
   }
 
   function renderPriceBlock(market: MarketType) {
     const isSpot = market === "spot";
-    // 다크 테마 친화적인 틴트 색상 (테마 변수 기반)
     const palette = isSpot
-      ? { bg: "rgba(16, 185, 129, 0.08)", border: "var(--success)" } // Spot: success 틴트
-      : { bg: "rgba(59, 130, 246, 0.08)", border: "var(--primary)" }; // Perp: primary 틴트
+      ? { bg: "rgba(16, 185, 129, 0.08)", border: "var(--success)" }
+      : { bg: "rgba(59, 130, 246, 0.08)", border: "var(--primary)" };
 
     return (
       <div
@@ -49,20 +65,13 @@ export default function Sandbox() {
             provider,
           })
         }
-        style={{
-          background: palette.bg,
-          borderColor: palette.border,
-        }}
+        style={{ background: palette.bg, borderColor: palette.border }}
       >
         <div style={{ fontWeight: 600 }}>
           {isSpot ? "Spot" : "Perp"} · {symbol}
         </div>
         <div
-          style={{
-            fontSize: 12,
-            color: "var(--text-secondary)",
-            marginTop: 4,
-          }}
+          style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}
         >
           {(provider === "binance" ? "Binance" : "Upbit").toUpperCase()} 가격
           블록
@@ -70,6 +79,13 @@ export default function Sandbox() {
       </div>
     );
   }
+
+  const slashHints = [
+    "/binance spot price",
+    "/binance perp price",
+    "/upbit spot price",
+    "/upbit perp price",
+  ];
 
   return (
     <div
@@ -83,64 +99,112 @@ export default function Sandbox() {
       }}
     >
       <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Sandbox</h3>
-      <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: 13 }}>
-        BTC/ETH 자산에 대해 Binance 또는 Upbit API를 선택해 현선 가격 블록을
-        끌어다 사용할 수 있습니다.
-      </p>
-
       <div className="sidebar-section" style={{ marginTop: 0 }}>
-        <strong>API 선택</strong>
+        <strong>API 유형</strong>
         <div className="toggle-group">
-          {(["binance", "upbit"] as ProviderType[]).map((p) => (
-            <button
-              key={p}
-              className={`toggle-btn ${provider === p ? "active" : ""}`}
-              onClick={() => setProvider(p)}
+          <button
+            className={`toggle-btn ${apiType === "basic" ? "active" : ""}`}
+            onClick={() => setApiType("basic")}
+          >
+            Basic API
+          </button>
+          <button
+            className={`toggle-btn ${apiType === "custom" ? "active" : ""}`}
+            onClick={() => setApiType("custom")}
+          >
+            Custom API
+          </button>
+        </div>
+      </div>
+
+      {apiType === "basic" && (
+        <div className="sidebar-section">
+          <strong>Basic 소스 선택</strong>
+          <div style={{ marginTop: 8 }}>
+            <input
+              type="text"
+              placeholder={computedPlaceholder}
+              value={providerInput}
+              onChange={(e) => setProviderInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const q = providerInput.trim().toLowerCase();
+                  const match = slashHints.find((h) => h.includes(q));
+                  if (match) applySlashSelection(match);
+                }
+                if (e.key === "Escape") setShowProviderHints(false);
+              }}
+              onFocus={() => setShowProviderHints(true)}
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-sm)",
+                background: "var(--bg)",
+                color: "var(--text)",
+              }}
+            />
+            {showProviderHints && providerInput.startsWith("/") && (
+              <div
+                style={{
+                  marginTop: 6,
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-sm)",
+                  background: "var(--panel)",
+                  overflow: "hidden",
+                }}
+              >
+                {slashHints
+                  .filter((s) => s.includes(providerInput.toLowerCase()))
+                  .map((hint) => (
+                    <div
+                      key={hint}
+                      onMouseDown={() => {
+                        applySlashSelection(hint);
+                        setShowProviderHints(false);
+                      }}
+                      style={{
+                        padding: "8px 10px",
+                        cursor: "pointer",
+                        fontSize: 13,
+                      }}
+                    >
+                      {hint}
+                    </div>
+                  ))}
+              </div>
+            )}
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--text-secondary)",
+                marginTop: 6,
+              }}
             >
-              {p === "binance" ? "Binance API" : "Upbit API"}
-            </button>
-          ))}
+              선택됨: {provider === "binance" ? "Binance" : "Upbit"} ·{" "}
+              {activeMarkets.spot ? "Spot" : activeMarkets.perp ? "Perp" : "-"}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="sidebar-section">
-        <strong>자산 선택</strong>
-        <select
-          value={symbol}
-          onChange={(e) => setSymbol(e.target.value)}
-          style={{
-            width: "100%",
-            marginTop: 8,
-            padding: "8px 12px",
-            borderRadius: "var(--radius-sm)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          {ASSETS.map((asset) => (
-            <option key={asset.value} value={asset.value}>
-              {asset.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="sidebar-section">
-        <strong>데이터 종류</strong>
-        <div className="toggle-group">
-          <button
-            className={`toggle-btn ${activeMarkets.spot ? "active" : ""}`}
-            onClick={() => toggleMarket("spot")}
+      {apiType === "custom" && (
+        <div className="sidebar-section">
+          <strong>Custom API</strong>
+          <div
+            style={{
+              padding: 12,
+              border: "1px dashed var(--border)",
+              borderRadius: "var(--radius-sm)",
+              color: "var(--text-secondary)",
+              fontSize: 13,
+            }}
           >
-            현물
-          </button>
-          <button
-            className={`toggle-btn ${activeMarkets.perp ? "active" : ""}`}
-            onClick={() => toggleMarket("perp")}
-          >
-            선물
-          </button>
+            추후 제공 예정입니다. 현재는 Basic API(바이낸스/업비트)만 사용
+            가능합니다.
+          </div>
         </div>
-      </div>
+      )}
 
       <div
         style={{
@@ -151,10 +215,10 @@ export default function Sandbox() {
           overflow: "auto",
         }}
       >
-        {activeMarkets.spot && renderPriceBlock("spot")}
-        {activeMarkets.perp && renderPriceBlock("perp")}
+        {apiType === "basic" && activeMarkets.spot && renderPriceBlock("spot")}
+        {apiType === "basic" && activeMarkets.perp && renderPriceBlock("perp")}
 
-        {!activeMarkets.spot && !activeMarkets.perp && (
+        {apiType === "custom" && (
           <div
             style={{
               padding: 20,
@@ -163,7 +227,7 @@ export default function Sandbox() {
               fontSize: 13,
             }}
           >
-            데이터 종류를 활성화하면 가격 블록을 사용할 수 있습니다.
+            Custom API는 추후 추가될 예정입니다.
           </div>
         )}
       </div>
